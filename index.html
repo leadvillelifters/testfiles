@@ -2,45 +2,51 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SkillMirror — Delayed Feedback Trainer</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap');
 
   :root {
-    --bg: #0a0a0f;
-    --surface: #12121a;
+    --bg:       #0a0a0f;
+    --surface:  #12121a;
     --surface2: #1c1c28;
-    --border: #2a2a3d;
-    --accent: #00e5ff;
-    --accent2: #ff3d71;
-    --accent3: #a855f7;
-    --text: #e8e8f0;
+    --border:   #2a2a3d;
+    --accent:   #00e5ff;
+    --accent2:  #ff3d71;
+    --accent3:  #a855f7;
+    --text:     #e8e8f0;
     --text-dim: #6b6b8a;
-    --green: #00ffa3;
-    --yellow: #ffd60a;
-    --orange: #ff9500;
+    --green:    #00ffa3;
+    --yellow:   #ffd60a;
+    --orange:   #ff9500;
+
+    --header-h: 52px;
+    --bar-h:    64px;   /* mobile bottom action bar */
+    --drawer-h: 60vh;   /* mobile drawer height */
   }
 
-  * { margin: 0; padding: 0; box-sizing: border-box; }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
-  body {
+  html, body {
+    height: 100%;
     background: var(--bg);
     color: var(--text);
     font-family: 'DM Sans', sans-serif;
-    min-height: 100vh;
-    overflow-x: hidden;
+    overflow: hidden;          /* no page scroll — sections scroll internally */
   }
 
   body::before {
     content: '';
     position: fixed; inset: 0;
-    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,229,255,0.012) 2px, rgba(0,229,255,0.012) 4px);
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,229,255,0.010) 2px, rgba(0,229,255,0.010) 4px);
     pointer-events: none;
     z-index: 1000;
   }
 
-  /* ── IFRAME BLOCKER SCREEN ─────────────────────────────────────────────── */
+  /* ═══════════════════════════════════════════════════════════════
+     IFRAME BLOCKER
+  ═══════════════════════════════════════════════════════════════ */
   #iframeBlocker {
     display: none;
     position: fixed; inset: 0;
@@ -49,166 +55,128 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 24px;
-    padding: 40px;
+    gap: 20px;
+    padding: 32px 24px;
     text-align: center;
   }
-
-  .blocker-icon {
-    font-size: 64px;
-    filter: grayscale(0.3);
-  }
-
-  .blocker-title {
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 32px;
-    letter-spacing: 4px;
-    color: var(--orange);
-  }
-
-  .blocker-body {
-    font-family: 'DM Sans', sans-serif;
-    font-size: 15px;
-    color: var(--text-dim);
-    max-width: 460px;
-    line-height: 1.7;
-  }
-
+  .blocker-icon { font-size: 56px; }
+  .blocker-title { font-family: 'Bebas Neue', sans-serif; font-size: clamp(24px,6vw,34px); letter-spacing: 4px; color: var(--orange); }
+  .blocker-body { font-size: clamp(13px,3.5vw,15px); color: var(--text-dim); max-width: 440px; line-height: 1.7; }
   .blocker-body strong { color: var(--text); }
-
   .blocker-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-    padding: 16px 32px;
-    background: var(--accent);
-    color: #000;
-    font-family: 'DM Mono', monospace;
-    font-size: 13px;
-    font-weight: 600;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    text-decoration: none;
-    border-radius: 4px;
-    border: none;
-    cursor: pointer;
-    transition: all 0.15s;
+    display: inline-flex; align-items: center; gap: 10px;
+    padding: 14px 28px;
+    background: var(--accent); color: #000;
+    font-family: 'DM Mono', monospace; font-size: 13px; font-weight: 600;
+    letter-spacing: 2px; text-transform: uppercase; text-decoration: none;
+    border-radius: 6px; border: none; cursor: pointer;
     box-shadow: 0 0 24px rgba(0,229,255,0.3);
+    transition: all 0.15s;
   }
   .blocker-btn:hover { box-shadow: 0 0 40px rgba(0,229,255,0.5); transform: translateY(-2px); }
+  .blocker-note { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text-dim); letter-spacing: 1px; opacity: 0.6; }
 
-  .blocker-note {
-    font-family: 'DM Mono', monospace;
-    font-size: 10px;
-    color: var(--text-dim);
-    letter-spacing: 1px;
-    opacity: 0.6;
-  }
+  /* ═══════════════════════════════════════════════════════════════
+     APP SHELL
+  ═══════════════════════════════════════════════════════════════ */
+  #appShell { display: none; height: 100%; flex-direction: column; }
+  #appShell.visible { display: flex; }
 
-  /* ── MAIN APP ──────────────────────────────────────────────────────────── */
-  #appShell { display: block; }
-
+  /* ── HEADER ─────────────────────────────────────────────────── */
   header {
+    flex-shrink: 0;
+    height: var(--header-h);
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 16px 32px;
+    padding: 0 16px;
     border-bottom: 1px solid var(--border);
-    background: rgba(10,10,15,0.9);
+    background: rgba(10,10,15,0.95);
     backdrop-filter: blur(12px);
-    position: sticky; top: 0;
-    z-index: 100;
+    z-index: 200;
   }
 
   .logo {
     font-family: 'Bebas Neue', sans-serif;
-    font-size: 28px;
+    font-size: clamp(20px,5vw,26px);
     letter-spacing: 3px;
     background: linear-gradient(135deg, var(--accent) 0%, var(--accent3) 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
+    line-height: 1;
   }
-  .logo span { color: var(--accent2); -webkit-text-fill-color: var(--accent2); }
+  .logo span { -webkit-text-fill-color: var(--accent2); }
 
-  .header-right { display: flex; align-items: center; gap: 16px; }
+  .header-right { display: flex; align-items: center; gap: 10px; }
 
   .status-badge {
-    display: flex;
-    align-items: center;
-    gap: 8px;
+    display: flex; align-items: center; gap: 6px;
     font-family: 'DM Mono', monospace;
-    font-size: 11px;
+    font-size: clamp(9px,2.5vw,11px);
     color: var(--text-dim);
     letter-spacing: 1px;
     text-transform: uppercase;
   }
+  .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-dim); transition: all 0.3s; }
+  .status-dot.live { background: var(--green); box-shadow: 0 0 8px var(--green); animation: blink 2s infinite; }
+  .status-dot.recording { background: var(--accent2); box-shadow: 0 0 8px var(--accent2); animation: blink 0.8s infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.35} }
 
-  .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-dim); transition: all 0.3s; }
-  .status-dot.live { background: var(--green); box-shadow: 0 0 8px var(--green); animation: pulse 2s infinite; }
-  .status-dot.recording { background: var(--accent2); box-shadow: 0 0 8px var(--accent2); animation: pulse 0.8s infinite; }
-  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
-
-  /* Fullscreen button in header */
-  .btn-fullscreen {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 7px 12px;
+  .btn-newtab {
+    display: flex; align-items: center; gap: 5px;
+    padding: 6px 10px;
     background: transparent;
     border: 1px solid var(--border);
     border-radius: 4px;
     color: var(--text-dim);
     font-family: 'DM Mono', monospace;
-    font-size: 10px;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    cursor: pointer;
-    text-decoration: none;
+    font-size: 9px; letter-spacing: 1px; text-transform: uppercase;
+    text-decoration: none; cursor: pointer;
     transition: all 0.15s;
+    white-space: nowrap;
   }
-  .btn-fullscreen:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-newtab:hover { border-color: var(--accent); color: var(--accent); }
 
-  .main-layout {
-    display: grid;
-    grid-template-columns: 1fr 320px;
-    height: calc(100vh - 61px);
+  /* ── CONTENT AREA (desktop: side-by-side; mobile: stacked) ─── */
+  .content-area {
+    flex: 1;
+    display: flex;
+    flex-direction: row;
+    overflow: hidden;
+    position: relative;
   }
 
+  /* ── VIDEO SECTION ──────────────────────────────────────────── */
   .video-section {
+    flex: 1;
     position: relative;
     background: #000;
     overflow: hidden;
     display: flex;
     align-items: center;
     justify-content: center;
-  }
-
-  .video-container {
-    position: relative;
-    width: 100%; height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    min-height: 0;
   }
 
   #delayedCanvas { max-width: 100%; max-height: 100%; display: block; }
 
   #livePreview {
     position: absolute;
-    bottom: 20px; right: 20px;
-    width: 200px; height: 150px;
+    bottom: 12px; right: 12px;
+    width: clamp(100px, 20vw, 180px);
+    height: clamp(75px, 15vw, 135px);
     border-radius: 6px;
     border: 2px solid var(--accent);
     object-fit: cover;
-    box-shadow: 0 0 20px rgba(0,229,255,0.3);
+    box-shadow: 0 0 16px rgba(0,229,255,0.3);
     transform: scaleX(-1);
   }
 
   .video-overlay-top {
     position: absolute;
     top: 0; left: 0; right: 0;
-    padding: 16px 20px;
-    background: linear-gradient(to bottom, rgba(0,0,0,0.7), transparent);
+    padding: 12px 16px;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.65), transparent);
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
@@ -217,175 +185,302 @@
 
   .delay-indicator {
     font-family: 'Bebas Neue', sans-serif;
-    font-size: 52px; line-height: 1;
+    font-size: clamp(36px,8vw,52px);
+    line-height: 1;
     color: var(--accent);
-    text-shadow: 0 0 30px rgba(0,229,255,0.5);
+    text-shadow: 0 0 24px rgba(0,229,255,0.5);
     letter-spacing: 2px;
   }
-  .delay-label { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--accent); letter-spacing: 2px; opacity: 0.7; margin-top: 2px; }
+  .delay-label { font-family: 'DM Mono', monospace; font-size: 9px; color: var(--accent); letter-spacing: 2px; opacity: 0.7; margin-top: 2px; }
 
   .rec-badge {
-    display: none;
-    align-items: center;
-    gap: 6px;
-    background: rgba(255,61,113,0.2);
-    border: 1px solid var(--accent2);
-    padding: 6px 12px;
-    border-radius: 4px;
-    font-family: 'DM Mono', monospace;
-    font-size: 11px;
-    color: var(--accent2);
-    letter-spacing: 2px;
+    display: none; align-items: center; gap: 6px;
+    background: rgba(255,61,113,0.2); border: 1px solid var(--accent2);
+    padding: 5px 10px; border-radius: 4px;
+    font-family: 'DM Mono', monospace; font-size: 10px; color: var(--accent2); letter-spacing: 2px;
   }
   .rec-badge.active { display: flex; }
-  .rec-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent2); animation: pulse 0.8s infinite; }
+  .rec-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent2); animation: blink 0.8s infinite; }
 
   .no-camera-msg {
     position: absolute; inset: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 16px;
-    color: var(--text-dim);
-    font-family: 'DM Mono', monospace;
-    font-size: 13px;
-    letter-spacing: 1px;
-    text-transform: uppercase;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 12px;
+    color: var(--text-dim); font-family: 'DM Mono', monospace;
+    font-size: clamp(11px,3vw,13px); letter-spacing: 1px; text-transform: uppercase;
   }
-  .no-camera-icon { font-size: 48px; opacity: 0.3; }
+  .no-camera-icon { font-size: clamp(36px,8vw,48px); opacity: 0.3; }
 
+  /* ═══════════════════════════════════════════════════════════════
+     DESKTOP SIDEBAR  (≥ 768px)
+  ═══════════════════════════════════════════════════════════════ */
   .sidebar {
+    width: 300px;
+    flex-shrink: 0;
     background: var(--surface);
     border-left: 1px solid var(--border);
     display: flex;
     flex-direction: column;
     overflow-y: auto;
+    overscroll-behavior: contain;
   }
 
-  .sidebar-section { padding: 20px; border-bottom: 1px solid var(--border); }
+  .sidebar-section { padding: 16px; border-bottom: 1px solid var(--border); }
 
   .section-label {
     font-family: 'DM Mono', monospace;
-    font-size: 9px;
-    letter-spacing: 3px;
-    text-transform: uppercase;
-    color: var(--text-dim);
-    margin-bottom: 14px;
+    font-size: 9px; letter-spacing: 3px; text-transform: uppercase;
+    color: var(--text-dim); margin-bottom: 12px;
   }
+
+  /* Camera buttons side-by-side on desktop */
+  .camera-btns { display: flex; gap: 8px; }
+  .camera-btns .btn { margin-bottom: 0; }
 
   .delay-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 6px; }
 
   .delay-btn {
-    background: var(--surface2);
-    border: 1px solid var(--border);
+    background: var(--surface2); border: 1px solid var(--border);
     color: var(--text-dim);
-    padding: 10px 6px;
-    border-radius: 4px;
-    font-family: 'DM Mono', monospace;
-    font-size: 13px;
-    cursor: pointer;
-    transition: all 0.15s;
-    text-align: center;
+    padding: 10px 4px; border-radius: 4px;
+    font-family: 'DM Mono', monospace; font-size: 13px;
+    cursor: pointer; transition: all 0.15s; text-align: center;
   }
-  .delay-btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(0,229,255,0.05); }
-  .delay-btn.active { background: rgba(0,229,255,0.1); border-color: var(--accent); color: var(--accent); box-shadow: 0 0 12px rgba(0,229,255,0.15); }
+  .delay-btn:hover  { border-color: var(--accent); color: var(--accent); background: rgba(0,229,255,0.05); }
+  .delay-btn.active { background: rgba(0,229,255,0.1); border-color: var(--accent); color: var(--accent); box-shadow: 0 0 10px rgba(0,229,255,0.15); }
 
   .custom-delay-row { margin-top: 10px; display: flex; align-items: center; gap: 10px; }
   .custom-delay-row input[type=range] {
     flex: 1; -webkit-appearance: none;
-    height: 3px; background: var(--border); border-radius: 2px; outline: none;
+    height: 4px; background: var(--border); border-radius: 2px; outline: none;
   }
   .custom-delay-row input[type=range]::-webkit-slider-thumb {
     -webkit-appearance: none;
-    width: 14px; height: 14px;
+    width: 18px; height: 18px;
     background: var(--accent); border-radius: 50%; cursor: pointer;
     box-shadow: 0 0 8px rgba(0,229,255,0.4);
   }
-  .custom-val { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--accent); min-width: 36px; text-align: right; }
+  .custom-val { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--accent); min-width: 34px; text-align: right; }
 
   .btn {
-    width: 100%;
-    padding: 12px 16px;
-    border-radius: 4px;
-    border: 1px solid;
-    font-family: 'DM Mono', monospace;
-    font-size: 12px;
-    letter-spacing: 1.5px;
-    text-transform: uppercase;
-    cursor: pointer;
-    transition: all 0.15s;
+    width: 100%; padding: 12px 14px; border-radius: 4px; border: 1px solid;
+    font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase;
+    cursor: pointer; transition: all 0.15s;
     margin-bottom: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    min-height: 44px; /* touch target */
   }
-  .btn-primary { background: var(--accent); border-color: var(--accent); color: #000; font-weight: 500; }
-  .btn-primary:hover { box-shadow: 0 0 20px rgba(0,229,255,0.4); transform: translateY(-1px); }
+  .btn:last-child { margin-bottom: 0; }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: #000; font-weight: 600; }
+  .btn-primary:hover { box-shadow: 0 0 20px rgba(0,229,255,0.4); }
   .btn-ghost { background: transparent; border-color: var(--border); color: var(--text-dim); }
   .btn-ghost:hover { border-color: var(--accent3); color: var(--accent3); }
   .btn-gif { background: transparent; border-color: var(--yellow); color: var(--yellow); }
-  .btn-gif:hover { background: rgba(255,214,10,0.08); box-shadow: 0 0 16px rgba(255,214,10,0.2); }
-  .btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; box-shadow: none; }
+  .btn-gif:hover { background: rgba(255,214,10,0.08); }
+  .btn:disabled { opacity: 0.32; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
 
-  .gif-progress { display: none; flex-direction: column; gap: 6px; margin-top: 6px; }
+  .gif-progress { display: none; flex-direction: column; gap: 6px; margin-top: 8px; }
   .gif-progress.visible { display: flex; }
   .progress-label { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--yellow); letter-spacing: 1px; }
   .progress-track { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
-  .progress-fill { height: 100%; background: var(--yellow); border-radius: 2px; transition: width 0.15s; box-shadow: 0 0 8px rgba(255,214,10,0.4); width: 0%; }
+  .progress-fill  { height: 100%; background: var(--yellow); border-radius: 2px; width: 0%; transition: width 0.15s; box-shadow: 0 0 8px rgba(255,214,10,0.4); }
 
-  .buffer-viz { display: flex; gap: 2px; margin-top: 4px; height: 20px; align-items: flex-end; }
+  .buffer-viz { display: flex; gap: 2px; height: 18px; align-items: flex-end; margin-top: 4px; }
   .buffer-bar { flex: 1; background: var(--border); border-radius: 1px; height: 4px; }
   .buffer-bar.filled { background: var(--accent3); height: 100%; }
-
-  .modal-overlay {
-    display: none;
-    position: fixed; inset: 0;
-    background: rgba(0,0,0,0.85);
-    backdrop-filter: blur(8px);
-    z-index: 500;
-    align-items: center;
-    justify-content: center;
-  }
-  .modal-overlay.open { display: flex; }
-  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 24px; max-width: 600px; width: 90vw; position: relative; }
-  .modal-title { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 3px; color: var(--yellow); margin-bottom: 16px; }
-  .modal img { width: 100%; border-radius: 4px; border: 1px solid var(--border); display: block; }
-  .modal-actions { display: flex; gap: 10px; margin-top: 16px; }
-  .modal-actions .btn { width: auto; flex: 1; margin-bottom: 0; }
-  .modal-close { position: absolute; top: 16px; right: 16px; background: none; border: none; color: var(--text-dim); font-size: 20px; cursor: pointer; }
-  .modal-close:hover { color: var(--text); }
 
   .stats-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .stat-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 10px; }
   .stat-val { font-family: 'Bebas Neue', sans-serif; font-size: 22px; color: var(--accent); letter-spacing: 1px; line-height: 1; }
   .stat-lbl { font-family: 'DM Mono', monospace; font-size: 9px; color: var(--text-dim); letter-spacing: 2px; text-transform: uppercase; margin-top: 3px; }
 
-  .clips-list { display: flex; flex-direction: column; gap: 8px; max-height: 200px; overflow-y: auto; }
+  .clips-list { display: flex; flex-direction: column; gap: 8px; max-height: 180px; overflow-y: auto; }
   .clip-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; cursor: pointer; transition: border-color 0.15s; }
   .clip-item:hover { border-color: var(--yellow); }
   .clip-thumb { width: 48px; height: 36px; object-fit: cover; border-radius: 2px; border: 1px solid var(--border); }
-  .clip-info { flex: 1; }
-  .clip-name { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text); }
+  .clip-info { flex: 1; min-width: 0; }
+  .clip-name { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .clip-meta { font-family: 'DM Mono', monospace; font-size: 9px; color: var(--text-dim); margin-top: 2px; }
-  .empty-clips { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text-dim); text-align: center; padding: 16px; }
+  .empty-clips { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text-dim); text-align: center; padding: 14px; }
 
-  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
   ::-webkit-scrollbar-track { background: var(--surface); }
   ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  /* ═══════════════════════════════════════════════════════════════
+     MODAL
+  ═══════════════════════════════════════════════════════════════ */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.88); backdrop-filter: blur(8px);
+    z-index: 600; align-items: center; justify-content: center;
+    padding: 16px;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 20px;
+    max-width: 560px; width: 100%; position: relative;
+  }
+  .modal-title { font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 3px; color: var(--yellow); margin-bottom: 14px; }
+  .modal img { width: 100%; border-radius: 4px; border: 1px solid var(--border); display: block; }
+  .modal-actions { display: flex; gap: 10px; margin-top: 14px; }
+  .modal-actions .btn { width: auto; flex: 1; margin-bottom: 0; }
+  .modal-close { position: absolute; top: 14px; right: 14px; background: none; border: none; color: var(--text-dim); font-size: 22px; cursor: pointer; line-height: 1; padding: 4px; }
+  .modal-close:hover { color: var(--text); }
+
+  /* ═══════════════════════════════════════════════════════════════
+     MOBILE / TABLET   (< 768px)
+     Layout:  header → video (fills remaining space) → bottom bar
+     Controls live in a slide-up drawer above the bar
+  ═══════════════════════════════════════════════════════════════ */
+  @media (max-width: 767px) {
+
+    :root { --header-h: 48px; }
+
+    .content-area { flex-direction: column; }
+
+    /* Video takes all available space above the bottom bar */
+    .video-section {
+      flex: 1;
+      /* leave room for bar */
+      padding-bottom: var(--bar-h);
+    }
+
+    /* Hide desktop sidebar */
+    .sidebar { display: none; }
+
+    /* Shrink live preview pip */
+    #livePreview { width: 90px; height: 68px; bottom: calc(var(--bar-h) + 8px); right: 8px; }
+
+    /* ── BOTTOM ACTION BAR ────────────────────────────────── */
+    .mobile-bar {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      height: var(--bar-h);
+      background: rgba(12,12,20,0.97);
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      padding: 0 8px;
+      z-index: 300;
+      backdrop-filter: blur(16px);
+      gap: 6px;
+    }
+
+    .bar-btn {
+      flex: 1;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+      padding: 8px 4px;
+      background: transparent; border: 1px solid var(--border);
+      border-radius: 6px; cursor: pointer;
+      font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 1px; text-transform: uppercase;
+      color: var(--text-dim);
+      transition: all 0.15s;
+      min-height: 48px;
+    }
+    .bar-btn:hover, .bar-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(0,229,255,0.07); }
+    .bar-btn.cam-start { border-color: var(--accent); background: var(--accent); color: #000; font-weight: 700; }
+    .bar-btn.cam-stop  { border-color: var(--accent2); color: var(--accent2); }
+    .bar-btn.gif-bar   { border-color: var(--yellow); color: var(--yellow); }
+    .bar-btn.gif-bar:disabled { opacity: 0.32; cursor: not-allowed; }
+    .bar-btn .bar-icon { font-size: 18px; line-height: 1; }
+
+    /* ── SLIDE-UP DRAWER ─────────────────────────────────── */
+    .mobile-drawer {
+      position: fixed; bottom: var(--bar-h); left: 0; right: 0;
+      height: var(--drawer-h);
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      border-radius: 16px 16px 0 0;
+      z-index: 290;
+      transform: translateY(100%);
+      transition: transform 0.32s cubic-bezier(0.4,0,0.2,1);
+      display: flex; flex-direction: column;
+      overflow: hidden;
+    }
+    .mobile-drawer.open { transform: translateY(0); }
+
+    .drawer-handle {
+      flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      padding: 10px 0 6px;
+    }
+    .drawer-handle::before {
+      content: '';
+      width: 36px; height: 4px;
+      background: var(--border); border-radius: 2px;
+    }
+
+    .drawer-tabs {
+      flex-shrink: 0;
+      display: flex;
+      border-bottom: 1px solid var(--border);
+    }
+    .drawer-tab {
+      flex: 1; padding: 10px 8px;
+      background: none; border: none;
+      color: var(--text-dim);
+      font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 2px; text-transform: uppercase;
+      cursor: pointer; border-bottom: 2px solid transparent;
+      transition: all 0.15s;
+    }
+    .drawer-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    .drawer-content {
+      flex: 1; overflow-y: auto; padding: 14px 16px;
+    }
+
+    .drawer-panel { display: none; }
+    .drawer-panel.active { display: block; }
+
+    /* Larger delay buttons on touch */
+    .delay-btn { padding: 13px 4px; font-size: 14px; }
+
+    /* Drawer clips list taller */
+    .clips-list { max-height: none; }
+
+    /* Drawer overlay (tap to close) */
+    .drawer-scrim {
+      display: none;
+      position: fixed; inset: 0 0 var(--bar-h) 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 280;
+    }
+    .drawer-scrim.open { display: block; }
+  }
+
+  /* Hide mobile-only elements on desktop (>=768px) */
+  @media (min-width: 768px) {
+    .mobile-bar, .mobile-drawer, .drawer-scrim { display: none !important; }
+  }
+
+  /* On mobile: bar always visible; drawer uses translateY to hide/show */
+  @media (max-width: 767px) {
+    .mobile-bar    { display: flex; }
+    .mobile-drawer { display: flex; flex-direction: column; }
+    .drawer-scrim  { display: none; }
+    .drawer-scrim.open { display: block; }
+  }
+
+  /* ── Tablet tweaks (768–1023px) ─────────────────────────────── */
+  @media (min-width: 768px) and (max-width: 1023px) {
+    .sidebar { width: 260px; }
+    .sidebar-section { padding: 14px; }
+  }
 </style>
 </head>
 <body>
 
-<!-- ── IFRAME / PERMISSIONS BLOCKER SCREEN ─────────────────────────────────── -->
+<!-- ── IFRAME BLOCKER ───────────────────────────────────────────────────────── -->
 <div id="iframeBlocker">
   <div class="blocker-icon">📷</div>
   <div class="blocker-title">Camera Access Blocked</div>
   <div class="blocker-body">
     This app is running inside an embedded frame (e.g. Google Sites), which
     <strong>blocks camera access</strong> for security reasons.<br><br>
-    Click below to open SkillMirror in its own tab where the camera works normally.
+    Open SkillMirror in its own tab where the camera works normally.
   </div>
   <a class="blocker-btn" id="openFullBtn" href="#" target="_blank" rel="noopener">
     ↗ Open SkillMirror in Full Tab
@@ -393,109 +488,186 @@
   <div class="blocker-note">CAMERA · DELAY TRAINER · GIF EXPORT</div>
 </div>
 
-<!-- ── MAIN APP SHELL ──────────────────────────────────────────────────────── -->
-<div id="appShell" style="display:none">
+<!-- ── APP SHELL ─────────────────────────────────────────────────────────────── -->
+<div id="appShell">
 
-<header>
-  <div class="logo">Skill<span>Mirror</span></div>
-  <div class="header-right">
-    <a class="btn-fullscreen" id="newTabBtn" href="" target="_blank" rel="noopener" title="Open in new tab">
-      ↗ Full Page
-    </a>
-    <div class="status-badge">
-      <div class="status-dot" id="statusDot"></div>
-      <span id="statusText">OFFLINE</span>
+  <header>
+    <div class="logo">Skill<span>Mirror</span></div>
+    <div class="header-right">
+      <a class="btn-newtab" id="newTabBtn" href="" target="_blank" rel="noopener">↗ New Tab</a>
+      <div class="status-badge">
+        <div class="status-dot" id="statusDot"></div>
+        <span id="statusText">OFFLINE</span>
+      </div>
     </div>
-  </div>
-</header>
+  </header>
 
-<div class="main-layout">
-  <div class="video-section">
-    <div class="video-container">
+  <div class="content-area">
+
+    <!-- VIDEO -->
+    <div class="video-section">
       <div class="no-camera-msg" id="noCameraMsg">
         <div class="no-camera-icon">⬡</div>
         <div>CAMERA NOT STARTED</div>
-        <div style="font-size:10px;opacity:0.5">Click "Start Camera" to begin</div>
+        <div style="font-size:10px;opacity:0.5;margin-top:-4px">Tap Start Camera to begin</div>
       </div>
       <canvas id="delayedCanvas"></canvas>
       <video id="livePreview" autoplay muted playsinline style="display:none"></video>
-    </div>
-    <div class="video-overlay-top">
-      <div>
-        <div class="delay-indicator" id="delayDisplay">2.0s</div>
-        <div class="delay-label">DELAY</div>
+      <div class="video-overlay-top">
+        <div>
+          <div class="delay-indicator" id="delayDisplay">2.0s</div>
+          <div class="delay-label">DELAY</div>
+        </div>
+        <div class="rec-badge" id="recBadge">
+          <div class="rec-dot"></div> ENCODING
+        </div>
       </div>
-      <div class="rec-badge" id="recBadge">
-        <div class="rec-dot"></div>
-        ENCODING
-      </div>
     </div>
+
+    <!-- DESKTOP SIDEBAR -->
+    <div class="sidebar">
+      <div class="sidebar-section">
+        <div class="section-label">Camera</div>
+        <div class="camera-btns">
+          <button class="btn btn-primary" id="startBtnD" onclick="startCamera()">▶ Start</button>
+          <button class="btn btn-ghost"   id="stopBtnD"  onclick="stopCamera()" disabled>■ Stop</button>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="section-label">Delay Time</div>
+        <div class="delay-grid" id="delayGridD">
+          <button class="delay-btn active" data-val="2"  onclick="setDelay(2)">2s</button>
+          <button class="delay-btn"        data-val="3"  onclick="setDelay(3)">3s</button>
+          <button class="delay-btn"        data-val="5"  onclick="setDelay(5)">5s</button>
+          <button class="delay-btn"        data-val="7"  onclick="setDelay(7)">7s</button>
+          <button class="delay-btn"        data-val="10" onclick="setDelay(10)">10s</button>
+          <button class="delay-btn"        data-val="15" onclick="setDelay(15)">15s</button>
+          <button class="delay-btn"        data-val="20" onclick="setDelay(20)">20s</button>
+          <button class="delay-btn"        data-val="30" onclick="setDelay(30)">30s</button>
+          <button class="delay-btn"        data-val="custom" id="customBtnD" onclick="setDelay('custom')">— s</button>
+        </div>
+        <div class="custom-delay-row" id="customRowD" style="display:none">
+          <input type="range" id="customSliderD" min="1" max="60" value="10" oninput="onCustomSlider(this.value)">
+          <span class="custom-val" id="customValD">10s</span>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="section-label">Frame Buffer</div>
+        <div class="buffer-viz" id="bufferViz"></div>
+        <div style="display:flex;justify-content:space-between;margin-top:6px">
+          <span style="font-family:'DM Mono',monospace;font-size:9px;color:var(--text-dim)">0s</span>
+          <span style="font-family:'DM Mono',monospace;font-size:9px;color:var(--accent3)" id="bufferLabel">0 frames</span>
+          <span style="font-family:'DM Mono',monospace;font-size:9px;color:var(--text-dim)">60s</span>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="section-label">Stats</div>
+        <div class="stats-row">
+          <div class="stat-card"><div class="stat-val" id="statFPS">—</div><div class="stat-lbl">FPS</div></div>
+          <div class="stat-card"><div class="stat-val" id="statFrames">—</div><div class="stat-lbl">Buffered</div></div>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="section-label">Save Clip</div>
+        <button class="btn btn-gif" id="gifBtnD" onclick="captureGIF()" disabled>⬡ Save Last 3s as GIF</button>
+        <div class="gif-progress" id="gifProgress">
+          <div class="progress-label" id="gifLabel">ENCODING...</div>
+          <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+        </div>
+      </div>
+
+      <div class="sidebar-section" style="flex:1">
+        <div class="section-label">Saved Clips</div>
+        <div class="clips-list" id="clipsList">
+          <div class="empty-clips">No clips saved yet</div>
+        </div>
+      </div>
+    </div><!-- /sidebar -->
+
+  </div><!-- /content-area -->
+
+  <!-- ── MOBILE BOTTOM BAR ────────────────────────────────────────────────── -->
+  <div class="mobile-bar">
+    <button class="bar-btn cam-start" id="barCamBtn" onclick="barCamTap()">
+      <span class="bar-icon">📷</span>
+      <span id="barCamLabel">Start</span>
+    </button>
+    <button class="bar-btn" id="barDelayBtn" onclick="toggleDrawer('delay')">
+      <span class="bar-icon">⏱</span>
+      <span id="barDelayLabel">2.0s</span>
+    </button>
+    <button class="bar-btn gif-bar" id="barGifBtn" onclick="captureGIF()" disabled>
+      <span class="bar-icon">⬡</span>
+      <span>Save GIF</span>
+    </button>
+    <button class="bar-btn" onclick="toggleDrawer('clips')">
+      <span class="bar-icon">🎞</span>
+      <span>Clips</span>
+    </button>
   </div>
 
-  <div class="sidebar">
-    <div class="sidebar-section">
-      <div class="section-label">Camera</div>
-      <button class="btn btn-primary" id="startBtn" onclick="startCamera()">▶ Start Camera</button>
-      <button class="btn btn-ghost" id="stopBtn" onclick="stopCamera()" disabled>■ Stop Camera</button>
+  <!-- ── MOBILE DRAWER ────────────────────────────────────────────────────── -->
+  <div class="drawer-scrim" id="drawerScrim" onclick="closeDrawer()"></div>
+  <div class="mobile-drawer" id="mobileDrawer">
+    <div class="drawer-handle"></div>
+    <div class="drawer-tabs">
+      <button class="drawer-tab active" id="tabDelay" onclick="switchTab('delay')">⏱ Delay</button>
+      <button class="drawer-tab" id="tabStats" onclick="switchTab('stats')">📊 Stats</button>
+      <button class="drawer-tab" id="tabClips" onclick="switchTab('clips')">🎞 Clips</button>
     </div>
+    <div class="drawer-content">
 
-    <div class="sidebar-section">
-      <div class="section-label">Delay Time</div>
-      <div class="delay-grid">
-        <button class="delay-btn active" data-val="2"  onclick="setDelay(2)">2s</button>
-        <button class="delay-btn"        data-val="3"  onclick="setDelay(3)">3s</button>
-        <button class="delay-btn"        data-val="5"  onclick="setDelay(5)">5s</button>
-        <button class="delay-btn"        data-val="7"  onclick="setDelay(7)">7s</button>
-        <button class="delay-btn"        data-val="10" onclick="setDelay(10)">10s</button>
-        <button class="delay-btn"        data-val="15" onclick="setDelay(15)">15s</button>
-        <button class="delay-btn"        data-val="20" onclick="setDelay(20)">20s</button>
-        <button class="delay-btn"        data-val="30" onclick="setDelay(30)">30s</button>
-        <button class="delay-btn"        data-val="custom" id="customBtn" onclick="setDelay('custom')">— s</button>
+      <!-- Delay panel -->
+      <div class="drawer-panel active" id="panelDelay">
+        <div class="delay-grid" id="delayGridM">
+          <button class="delay-btn active" data-val="2"  onclick="setDelay(2)">2s</button>
+          <button class="delay-btn"        data-val="3"  onclick="setDelay(3)">3s</button>
+          <button class="delay-btn"        data-val="5"  onclick="setDelay(5)">5s</button>
+          <button class="delay-btn"        data-val="7"  onclick="setDelay(7)">7s</button>
+          <button class="delay-btn"        data-val="10" onclick="setDelay(10)">10s</button>
+          <button class="delay-btn"        data-val="15" onclick="setDelay(15)">15s</button>
+          <button class="delay-btn"        data-val="20" onclick="setDelay(20)">20s</button>
+          <button class="delay-btn"        data-val="30" onclick="setDelay(30)">30s</button>
+          <button class="delay-btn"        data-val="custom" id="customBtnM" onclick="setDelay('custom')">— s</button>
+        </div>
+        <div class="custom-delay-row" id="customRowM" style="display:none;margin-top:14px">
+          <input type="range" id="customSliderM" min="1" max="60" value="10" oninput="onCustomSlider(this.value)">
+          <span class="custom-val" id="customValM">10s</span>
+        </div>
       </div>
-      <div class="custom-delay-row" id="customRow" style="display:none">
-        <input type="range" id="customSlider" min="1" max="60" value="10" oninput="onCustomSlider(this.value)">
-        <span class="custom-val" id="customVal">10s</span>
-      </div>
-    </div>
 
-    <div class="sidebar-section">
-      <div class="section-label">Frame Buffer</div>
-      <div class="buffer-viz" id="bufferViz"></div>
-      <div style="display:flex;justify-content:space-between;margin-top:6px">
-        <span style="font-family:'DM Mono',monospace;font-size:9px;color:var(--text-dim)">0s</span>
-        <span style="font-family:'DM Mono',monospace;font-size:9px;color:var(--accent3)" id="bufferLabel">0 frames</span>
-        <span style="font-family:'DM Mono',monospace;font-size:9px;color:var(--text-dim)">60s</span>
+      <!-- Stats panel -->
+      <div class="drawer-panel" id="panelStats">
+        <div class="stats-row" style="margin-bottom:14px">
+          <div class="stat-card"><div class="stat-val" id="statFPSM">—</div><div class="stat-lbl">FPS</div></div>
+          <div class="stat-card"><div class="stat-val" id="statFramesM">—</div><div class="stat-lbl">Buffered</div></div>
+        </div>
+        <div class="section-label" style="margin-bottom:8px">Frame Buffer</div>
+        <div class="buffer-viz" id="bufferVizM"></div>
+        <div style="display:flex;justify-content:space-between;margin-top:6px">
+          <span style="font-family:'DM Mono',monospace;font-size:9px;color:var(--text-dim)">0s</span>
+          <span style="font-family:'DM Mono',monospace;font-size:9px;color:var(--accent3)" id="bufferLabelM">0 frames</span>
+          <span style="font-family:'DM Mono',monospace;font-size:9px;color:var(--text-dim)">60s</span>
+        </div>
       </div>
-    </div>
 
-    <div class="sidebar-section">
-      <div class="section-label">Session Stats</div>
-      <div class="stats-row">
-        <div class="stat-card"><div class="stat-val" id="statFPS">—</div><div class="stat-lbl">FPS</div></div>
-        <div class="stat-card"><div class="stat-val" id="statFrames">—</div><div class="stat-lbl">Buffered</div></div>
+      <!-- Clips panel -->
+      <div class="drawer-panel" id="panelClips">
+        <div class="clips-list" id="clipsListM">
+          <div class="empty-clips">No clips saved yet</div>
+        </div>
       </div>
-    </div>
 
-    <div class="sidebar-section">
-      <div class="section-label">Save Clip</div>
-      <button class="btn btn-gif" id="gifBtn" onclick="captureGIF()" disabled>⬡ Save Last 3s as GIF</button>
-      <div class="gif-progress" id="gifProgress">
-        <div class="progress-label" id="gifLabel">ENCODING...</div>
-        <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
-      </div>
-    </div>
-
-    <div class="sidebar-section" style="flex:1">
-      <div class="section-label">Saved Clips</div>
-      <div class="clips-list" id="clipsList">
-        <div class="empty-clips">No clips saved yet</div>
-      </div>
     </div>
   </div>
-</div>
 
 </div><!-- /appShell -->
 
+<!-- ── GIF PREVIEW MODAL ──────────────────────────────────────────────────── -->
 <div class="modal-overlay" id="gifModal">
   <div class="modal">
     <button class="modal-close" onclick="closeModal()">✕</button>
@@ -510,47 +682,30 @@
 
 <script>
 // ═══════════════════════════════════════════════════════════════════════════════
-//  IFRAME + PERMISSIONS DETECTION
-//  Runs before anything else. Shows blocker screen if camera can't work.
+//  IFRAME / PERMISSIONS DETECTION
 // ═══════════════════════════════════════════════════════════════════════════════
 (function detectEnvironment() {
   const selfUrl = window.location.href;
-
-  // Set the "open full page" links to this file's own URL
   document.getElementById('openFullBtn').href = selfUrl;
   document.getElementById('newTabBtn').href   = selfUrl;
 
-  // Check 1: are we inside an iframe?
   const inIframe = (() => {
     try { return window.self !== window.top; }
-    catch (e) { return true; } // cross-origin top → definitely iframe
+    catch (e) { return true; }
   })();
 
-  if (!inIframe) {
-    // Not in an iframe — show the app
-    document.getElementById('appShell').style.display = 'block';
-    return;
-  }
+  if (!inIframe) { document.getElementById('appShell').classList.add('visible'); return; }
 
-  // Check 2: we're in an iframe — probe camera permissions
-  // Some embedders (not Google Sites) do pass allow="camera" so we still test.
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    showBlocker();
-    return;
+    showBlocker(); return;
   }
 
   if (navigator.permissions && navigator.permissions.query) {
-    navigator.permissions.query({ name: 'camera' }).then(result => {
-      if (result.state === 'denied') {
-        showBlocker();
-      } else {
-        // 'granted' or 'prompt' — try to use the app; camera request will
-        // fail at click time if the embedder blocks it and we catch that too.
-        document.getElementById('appShell').style.display = 'block';
-      }
-    }).catch(() => showBlocker());
+    navigator.permissions.query({ name: 'camera' }).then(r => {
+      if (r.state === 'denied') showBlocker();
+      else document.getElementById('appShell').classList.add('visible');
+    }).catch(showBlocker);
   } else {
-    // Can't query permissions API — assume blocked when in iframe
     showBlocker();
   }
 
@@ -560,110 +715,74 @@
 })();
 
 // ═══════════════════════════════════════════════════════════════════════════════
-//  SELF-CONTAINED GIF ENCODER (no external libs, no Web Workers, no CDN)
+//  SELF-CONTAINED GIF ENCODER
 // ═══════════════════════════════════════════════════════════════════════════════
 class GIFEncoder {
   constructor(w, h) { this.w = w; this.h = h; this.frames = []; }
-
   addFrame(pixels, delayMs) {
     this.frames.push({ pixels, delay: Math.max(2, Math.round(delayMs / 10)) });
   }
-
   encode() {
     const { w, h } = this;
     const out = [];
     const wr   = (...b) => { for (const x of b) out.push(x & 0xff); };
     const w16  = n => wr(n & 0xff, (n >> 8) & 0xff);
     const wstr = s => { for (let i = 0; i < s.length; i++) wr(s.charCodeAt(i)); };
-
-    wstr('GIF89a');
-    w16(w); w16(h);
+    wstr('GIF89a'); w16(w); w16(h);
     wr(0x80, 0, 0, 0, 0, 0, 255, 255, 255);
-
-    // Netscape loop-forever
-    wr(0x21, 0xff, 0x0b);
-    wstr('NETSCAPE2.0');
-    wr(3, 1); w16(0); wr(0);
-
+    wr(0x21, 0xff, 0x0b); wstr('NETSCAPE2.0'); wr(3,1); w16(0); wr(0);
     for (const { pixels, delay } of this.frames) {
-      const palMap = new Map();
-      const palette = [];
-      const indices = new Uint8Array(w * h);
-
+      const palMap = new Map(), palette = [], indices = new Uint8Array(w * h);
       for (let i = 0; i < w * h; i++) {
         const r = pixels[i*4], g = pixels[i*4+1], b = pixels[i*4+2];
-        const key = ((r >> 2) << 12) | ((g >> 2) << 6) | (b >> 2);
+        const key = ((r>>2)<<12)|((g>>2)<<6)|(b>>2);
         if (!palMap.has(key)) {
-          if (palette.length < 255 * 3) {
-            palMap.set(key, palette.length / 3);
-            palette.push(r, g, b);
-          } else {
-            let best = 0, bd = Infinity;
-            for (let p = 0; p < palette.length; p += 3) {
-              const d = (palette[p]-r)**2 + (palette[p+1]-g)**2 + (palette[p+2]-b)**2;
-              if (d < bd) { bd = d; best = p / 3; }
+          if (palette.length < 255*3) { palMap.set(key, palette.length/3); palette.push(r,g,b); }
+          else {
+            let best=0, bd=Infinity;
+            for (let p=0; p<palette.length; p+=3) {
+              const d=(palette[p]-r)**2+(palette[p+1]-g)**2+(palette[p+2]-b)**2;
+              if(d<bd){bd=d;best=p/3;}
             }
             palMap.set(key, best);
           }
         }
         indices[i] = palMap.get(key);
       }
-
-      let palBits = 2;
-      while ((1 << palBits) < palette.length / 3) palBits++;
-      while (palette.length < (1 << palBits) * 3) palette.push(0, 0, 0);
-
-      wr(0x21, 0xf9, 0x04, 0x00); w16(delay); wr(0, 0);
-      wr(0x2c); w16(0); w16(0); w16(w); w16(h);
-      wr(0x80 | (palBits - 1));
-      for (let i = 0; i < palette.length; i++) wr(palette[i]);
-
-      const lzwMin = Math.max(palBits, 2);
-      const compressed = this._lzw(indices, lzwMin);
-      wr(lzwMin);
-      for (let i = 0; i < compressed.length; i += 255) {
-        const chunk = compressed.slice(i, i + 255);
-        wr(chunk.length);
-        for (const byte of chunk) wr(byte);
-      }
+      let pb=2; while((1<<pb)<palette.length/3) pb++;
+      while(palette.length<(1<<pb)*3) palette.push(0,0,0);
+      wr(0x21,0xf9,0x04,0x00); w16(delay); wr(0,0);
+      wr(0x2c); w16(0); w16(0); w16(w); w16(h); wr(0x80|(pb-1));
+      for(const b of palette) wr(b);
+      const lzw=this._lzw(indices, Math.max(pb,2));
+      wr(Math.max(pb,2));
+      for(let i=0;i<lzw.length;i+=255){const c=lzw.slice(i,i+255);wr(c.length);for(const b of c)wr(b);}
       wr(0);
     }
-
     wr(0x3b);
     return new Uint8Array(out);
   }
-
   _lzw(data, minCode) {
-    const CLEAR = 1 << minCode, EOI = CLEAR + 1;
-    let cs = minCode + 1, nc = EOI + 1;
-    const tbl = new Map();
-    const out = [];
-    let buf = 0, bits = 0;
-
-    const emit = code => {
-      buf |= (code << bits); bits += cs;
-      while (bits >= 8) { out.push(buf & 0xff); buf >>>= 8; bits -= 8; }
-    };
-    const reset = () => {
-      tbl.clear();
-      for (let i = 0; i < CLEAR; i++) tbl.set('' + i, i);
-      cs = minCode + 1; nc = EOI + 1;
-    };
-
+    const CLEAR=1<<minCode, EOI=CLEAR+1;
+    let cs=minCode+1, nc=EOI+1;
+    const tbl=new Map(), out=[];
+    let buf=0, bits=0;
+    const emit=code=>{buf|=(code<<bits);bits+=cs;while(bits>=8){out.push(buf&0xff);buf>>>=8;bits-=8;}};
+    const reset=()=>{tbl.clear();for(let i=0;i<CLEAR;i++)tbl.set(''+i,i);cs=minCode+1;nc=EOI+1;};
     emit(CLEAR); reset();
-    let str = '' + data[0];
-    for (let i = 1; i < data.length; i++) {
-      const ext = str + ',' + data[i];
-      if (tbl.has(ext)) { str = ext; }
-      else {
+    let str=''+data[0];
+    for(let i=1;i<data.length;i++){
+      const ext=str+','+data[i];
+      if(tbl.has(ext)){str=ext;}
+      else{
         emit(tbl.get(str));
-        if (nc < 4096) { tbl.set(ext, nc++); if (nc > (1 << cs) && cs < 12) cs++; }
-        else { emit(CLEAR); reset(); }
-        str = '' + data[i];
+        if(nc<4096){tbl.set(ext,nc++);if(nc>(1<<cs)&&cs<12)cs++;}
+        else{emit(CLEAR);reset();}
+        str=''+data[i];
       }
     }
     emit(tbl.get(str)); emit(EOI);
-    if (bits > 0) out.push(buf & 0xff);
+    if(bits>0) out.push(buf&0xff);
     return out;
   }
 }
@@ -684,17 +803,50 @@ let lastFPSt     = Date.now();
 let savedClips   = [];
 let isEncoding   = false;
 
-const video  = document.getElementById('livePreview');
-const canvas = document.getElementById('delayedCanvas');
-const ctx    = canvas.getContext('2d');
+const video      = document.getElementById('livePreview');
+const canvas     = document.getElementById('delayedCanvas');
+const ctx        = canvas.getContext('2d');
 const scratch    = document.createElement('canvas');
 const scratchCtx = scratch.getContext('2d', { willReadFrequently: true });
 
-// ── Camera ───────────────────────────────────────────────────────────────────
+const isMobile = () => window.innerWidth < 768;
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  MOBILE DRAWER
+// ═══════════════════════════════════════════════════════════════════════════════
+let drawerOpen = false;
+let activeTab  = 'delay';
+
+function toggleDrawer(tab) {
+  if (drawerOpen && activeTab === tab) { closeDrawer(); return; }
+  activeTab = tab;
+  switchTab(tab);
+  document.getElementById('mobileDrawer').classList.add('open');
+  document.getElementById('drawerScrim').classList.add('open');
+  drawerOpen = true;
+}
+
+function closeDrawer() {
+  document.getElementById('mobileDrawer').classList.remove('open');
+  document.getElementById('drawerScrim').classList.remove('open');
+  drawerOpen = false;
+}
+
+function switchTab(tab) {
+  activeTab = tab;
+  document.querySelectorAll('.drawer-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.drawer-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
+  document.getElementById('panel' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  CAMERA
+// ═══════════════════════════════════════════════════════════════════════════════
 async function startCamera() {
   try {
     stream = await navigator.mediaDevices.getUserMedia({
-      video: { width: { ideal: 1280 }, height: { ideal: 720 } },
+      video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
       audio: false
     });
     video.srcObject = stream;
@@ -710,13 +862,20 @@ async function startCamera() {
       setStatus('live', 'LIVE');
     };
 
-    document.getElementById('startBtn').disabled = true;
-    document.getElementById('stopBtn').disabled  = false;
-    document.getElementById('gifBtn').disabled   = false;
+    // Desktop buttons
+    document.getElementById('startBtnD').disabled = true;
+    document.getElementById('stopBtnD').disabled  = false;
+    document.getElementById('gifBtnD').disabled   = false;
+    // Mobile bar
+    const cb = document.getElementById('barCamBtn');
+    cb.className = 'bar-btn cam-stop';
+    document.getElementById('barCamLabel').textContent = 'Stop';
+    document.getElementById('barGifBtn').disabled = false;
+
+    if (isMobile()) closeDrawer();
   } catch (e) {
-    // Catch iframe camera block that slipped through detection
     if (e.name === 'NotAllowedError' || e.name === 'SecurityError') {
-      document.getElementById('appShell').style.display = 'none';
+      document.getElementById('appShell').classList.remove('visible');
       document.getElementById('iframeBlocker').style.display = 'flex';
     } else {
       alert('Camera error: ' + e.message);
@@ -733,14 +892,26 @@ function stopCamera() {
   document.getElementById('noCameraMsg').style.display = 'flex';
   frameBuffer = [];
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  document.getElementById('startBtn').disabled = false;
-  document.getElementById('stopBtn').disabled  = true;
-  document.getElementById('gifBtn').disabled   = true;
+  // Desktop
+  document.getElementById('startBtnD').disabled = false;
+  document.getElementById('stopBtnD').disabled  = true;
+  document.getElementById('gifBtnD').disabled   = true;
+  // Mobile
+  const cb = document.getElementById('barCamBtn');
+  cb.className = 'bar-btn cam-start';
+  document.getElementById('barCamLabel').textContent = 'Start';
+  document.getElementById('barGifBtn').disabled = true;
   setStatus('', 'OFFLINE');
   updateBufferViz();
 }
 
-// ── Capture loop ─────────────────────────────────────────────────────────────
+function barCamTap() {
+  if (!stream) startCamera(); else stopCamera();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  CAPTURE LOOP
+// ═══════════════════════════════════════════════════════════════════════════════
 function startCapture() {
   captureTimer = setInterval(() => {
     if (!stream || video.readyState < 2) return;
@@ -752,10 +923,13 @@ function startCapture() {
     if (frameBuffer.length > maxF) frameBuffer.splice(0, frameBuffer.length - maxF);
     const now = Date.now();
     if (now - lastFPSt >= 1000) {
-      document.getElementById('statFPS').textContent = fpsCount;
+      const f = fpsCount;
+      document.getElementById('statFPS').textContent  = f;
+      document.getElementById('statFPSM').textContent = f;
       fpsCount = 0; lastFPSt = now;
     }
-    document.getElementById('statFrames').textContent = frameBuffer.length;
+    document.getElementById('statFrames').textContent  = frameBuffer.length;
+    document.getElementById('statFramesM').textContent = frameBuffer.length;
     updateBufferViz();
   }, FRAME_MS);
 
@@ -779,69 +953,85 @@ function renderDelayed() {
   ctx.restore();
 }
 
-// ── Delay controls ───────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+//  DELAY CONTROLS  (syncs both desktop + mobile grids)
+// ═══════════════════════════════════════════════════════════════════════════════
 function setDelay(val) {
   document.querySelectorAll('.delay-btn').forEach(b => b.classList.remove('active'));
-  const customRow = document.getElementById('customRow');
+
   if (val === 'custom') {
-    const sv = document.getElementById('customSlider').value;
+    const sv = document.getElementById('customSliderD').value;
     delayMs = parseInt(sv) * 1000;
-    document.getElementById('customBtn').classList.add('active');
-    document.getElementById('customBtn').textContent = sv + 's';
-    customRow.style.display = 'flex';
+    document.querySelectorAll('[id^="customBtn"]').forEach(b => { b.classList.add('active'); b.textContent = sv + 's'; });
+    document.getElementById('customRowD').style.display = 'flex';
+    document.getElementById('customRowM').style.display = 'flex';
   } else {
     delayMs = val * 1000;
-    const btn = document.querySelector(`.delay-btn[data-val="${val}"]`);
-    if (btn) btn.classList.add('active');
-    customRow.style.display = 'none';
+    document.querySelectorAll(`.delay-btn[data-val="${val}"]`).forEach(b => b.classList.add('active'));
+    document.getElementById('customRowD').style.display = 'none';
+    document.getElementById('customRowM').style.display = 'none';
   }
-  document.getElementById('delayDisplay').textContent = (delayMs / 1000).toFixed(1) + 's';
+
+  const label = (delayMs / 1000).toFixed(1) + 's';
+  document.getElementById('delayDisplay').textContent  = label;
+  document.getElementById('barDelayLabel').textContent = label;
 }
 
 function onCustomSlider(val) {
-  document.getElementById('customVal').textContent = val + 's';
-  document.getElementById('customBtn').textContent = val + 's';
+  // Keep both sliders in sync
+  document.getElementById('customSliderD').value = val;
+  document.getElementById('customSliderM').value = val;
+  document.getElementById('customValD').textContent  = val + 's';
+  document.getElementById('customValM').textContent  = val + 's';
+  document.querySelectorAll('[id^="customBtn"]').forEach(b => b.textContent = val + 's');
   delayMs = parseInt(val) * 1000;
-  document.getElementById('delayDisplay').textContent = (delayMs / 1000).toFixed(1) + 's';
+  const label = (delayMs / 1000).toFixed(1) + 's';
+  document.getElementById('delayDisplay').textContent  = label;
+  document.getElementById('barDelayLabel').textContent = label;
 }
 
-// ── Buffer viz ───────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+//  BUFFER VISUALISER  (two canvases — desktop + mobile)
+// ═══════════════════════════════════════════════════════════════════════════════
 function updateBufferViz() {
-  const viz = document.getElementById('bufferViz');
-  const BARS = 30;
-  if (viz.children.length !== BARS) {
-    viz.innerHTML = '';
-    for (let i = 0; i < BARS; i++) {
-      const b = document.createElement('div');
-      b.className = 'buffer-bar';
-      viz.appendChild(b);
+  ['bufferViz', 'bufferVizM'].forEach(id => {
+    const viz = document.getElementById(id);
+    if (!viz) return;
+    const BARS = 30;
+    if (viz.children.length !== BARS) {
+      viz.innerHTML = '';
+      for (let i = 0; i < BARS; i++) {
+        const b = document.createElement('div'); b.className = 'buffer-bar'; viz.appendChild(b);
+      }
     }
-  }
-  const filled = Math.floor((frameBuffer.length / (MAX_BUF_S * TARGET_FPS)) * BARS);
-  viz.querySelectorAll('.buffer-bar').forEach((b, i) => b.classList.toggle('filled', i < filled));
-  document.getElementById('bufferLabel').textContent = frameBuffer.length + ' frames';
+    const filled = Math.floor((frameBuffer.length / (MAX_BUF_S * TARGET_FPS)) * BARS);
+    viz.querySelectorAll('.buffer-bar').forEach((b, i) => b.classList.toggle('filled', i < filled));
+  });
+  const lbl = frameBuffer.length + ' frames';
+  document.getElementById('bufferLabel').textContent  = lbl;
+  document.getElementById('bufferLabelM').textContent = lbl;
 }
 
-// ── GIF capture ──────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+//  GIF CAPTURE
+// ═══════════════════════════════════════════════════════════════════════════════
 function captureGIF() {
   if (isEncoding) return;
   if (!frameBuffer.length) { alert('Start the camera first.'); return; }
 
-  const now    = Date.now();
-  const WIN_MS = 3000;
+  const now = Date.now(), WIN_MS = 3000;
   const frames = frameBuffer.filter(f =>
-    f.timestamp >= now - WIN_MS - delayMs &&
-    f.timestamp <= now - delayMs
+    f.timestamp >= now - WIN_MS - delayMs && f.timestamp <= now - delayMs
   );
 
   if (frames.length < 2) {
-    const needed = ((delayMs + WIN_MS) / 1000).toFixed(0);
-    alert(`Not enough frames yet.\nWait at least ${needed}s after starting, then try again.`);
+    alert(`Not enough frames yet.\nWait at least ${((delayMs + WIN_MS)/1000).toFixed(0)}s after starting, then try again.`);
     return;
   }
 
   isEncoding = true;
-  document.getElementById('gifBtn').disabled = true;
+  document.getElementById('gifBtnD').disabled   = true;
+  document.getElementById('barGifBtn').disabled = true;
   document.getElementById('recBadge').classList.add('active');
   setStatus('recording', 'ENCODING');
 
@@ -855,27 +1045,24 @@ function captureGIF() {
   requestAnimationFrame(() => setTimeout(() => {
     try {
       const SCALE = 0.4;
-      const gw = Math.floor(scratch.width  * SCALE);
+      const gw = Math.floor(scratch.width * SCALE);
       const gh = Math.floor(scratch.height * SCALE);
       const MAX_FRAMES = 45;
-      const step    = Math.max(1, Math.floor(frames.length / MAX_FRAMES));
+      const step = Math.max(1, Math.floor(frames.length / MAX_FRAMES));
       const sampled = [];
       for (let i = 0; i < frames.length && sampled.length < MAX_FRAMES; i += step) sampled.push(frames[i]);
 
       const frameDelayMs = Math.round(WIN_MS / sampled.length);
       const gif = new GIFEncoder(gw, gh);
-      const tmp    = document.createElement('canvas');
+      const tmp = document.createElement('canvas');
       tmp.width = gw; tmp.height = gh;
       const tmpCtx = tmp.getContext('2d', { willReadFrequently: true });
 
       sampled.forEach((f, idx) => {
         const id = new ImageData(new Uint8ClampedArray(f.pixels), scratch.width, scratch.height);
         scratchCtx.putImageData(id, 0, 0);
-        tmpCtx.save();
-        tmpCtx.translate(gw, 0);
-        tmpCtx.scale(-1, 1);
-        tmpCtx.drawImage(scratch, 0, 0, gw, gh);
-        tmpCtx.restore();
+        tmpCtx.save(); tmpCtx.translate(gw,0); tmpCtx.scale(-1,1);
+        tmpCtx.drawImage(scratch, 0, 0, gw, gh); tmpCtx.restore();
         gif.addFrame(new Uint8ClampedArray(tmpCtx.getImageData(0,0,gw,gh).data), frameDelayMs);
         const pct = Math.round(((idx+1)/sampled.length)*85);
         progressFill.style.width = pct + '%';
@@ -886,24 +1073,24 @@ function captureGIF() {
       gifLabel.textContent = 'BUILDING GIF…';
 
       requestAnimationFrame(() => setTimeout(() => {
-        const bytes    = gif.encode();
-        const blob     = new Blob([bytes], { type: 'image/gif' });
-        const url      = URL.createObjectURL(blob);
-        const filename = 'skillmirror_' + Date.now() + '.gif';
+        const bytes = gif.encode();
+        const blob  = new Blob([bytes], { type: 'image/gif' });
+        const url   = URL.createObjectURL(blob);
+        const fname = 'skillmirror_' + Date.now() + '.gif';
 
         // Auto-download
         const a = document.createElement('a');
-        a.href = url; a.download = filename;
+        a.href = url; a.download = fname;
         document.body.appendChild(a); a.click(); document.body.removeChild(a);
 
-        // Sidebar
+        // Sidebar + mobile clips
         savedClips.unshift({ url, timestamp: new Date().toLocaleTimeString(), frames: sampled.length, delay: (delayMs/1000).toFixed(0) });
         updateClipsList();
 
         // Modal
         document.getElementById('gifPreviewImg').src        = url;
         document.getElementById('gifDownloadLink').href     = url;
-        document.getElementById('gifDownloadLink').download = filename;
+        document.getElementById('gifDownloadLink').download = fname;
         document.getElementById('gifModal').classList.add('open');
 
         progressFill.style.width = '100%';
@@ -911,15 +1098,17 @@ function captureGIF() {
         setTimeout(() => { gifProgress.classList.remove('visible'); progressFill.style.width = '0%'; }, 1200);
 
         isEncoding = false;
-        document.getElementById('gifBtn').disabled = false;
+        document.getElementById('gifBtnD').disabled   = false;
+        document.getElementById('barGifBtn').disabled = false;
         document.getElementById('recBadge').classList.remove('active');
         setStatus('live', 'LIVE');
       }, 20));
-    } catch (err) {
+    } catch(err) {
       console.error('GIF error:', err);
       alert('GIF encoding failed: ' + err.message);
       isEncoding = false;
-      document.getElementById('gifBtn').disabled = false;
+      document.getElementById('gifBtnD').disabled   = false;
+      document.getElementById('barGifBtn').disabled = false;
       document.getElementById('recBadge').classList.remove('active');
       document.getElementById('gifProgress').classList.remove('visible');
       setStatus('live', 'LIVE');
@@ -927,18 +1116,26 @@ function captureGIF() {
   }, 30));
 }
 
-// ── Clips ────────────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+//  CLIPS LIST  (desktop sidebar + mobile drawer)
+// ═══════════════════════════════════════════════════════════════════════════════
 function updateClipsList() {
-  const list = document.getElementById('clipsList');
-  if (!savedClips.length) { list.innerHTML = '<div class="empty-clips">No clips saved yet</div>'; return; }
-  list.innerHTML = savedClips.map((c, i) => `
-    <div class="clip-item" onclick="openClip(${i})">
-      <img class="clip-thumb" src="${c.url}" alt="clip">
-      <div class="clip-info">
-        <div class="clip-name">CLIP_${String(savedClips.length - i).padStart(3,'0')}</div>
-        <div class="clip-meta">${c.timestamp} · ${c.delay}s delay · ${c.frames}f</div>
-      </div>
-    </div>`).join('');
+  const html = savedClips.length
+    ? savedClips.map((c,i)=>`
+        <div class="clip-item" onclick="openClip(${i})">
+          <img class="clip-thumb" src="${c.url}" alt="">
+          <div class="clip-info">
+            <div class="clip-name">CLIP_${String(savedClips.length-i).padStart(3,'0')}</div>
+            <div class="clip-meta">${c.timestamp} · ${c.delay}s delay</div>
+          </div>
+        </div>`).join('')
+    : '<div class="empty-clips">No clips saved yet</div>';
+  document.getElementById('clipsList').innerHTML  = html;
+  document.getElementById('clipsListM').innerHTML = html;
+  // re-bind onclick for duplicated mobile list
+  document.querySelectorAll('#clipsListM .clip-item').forEach((el,i) => {
+    el.onclick = () => openClip(i);
+  });
 }
 
 function openClip(i) {
@@ -947,6 +1144,7 @@ function openClip(i) {
   document.getElementById('gifDownloadLink').href     = c.url;
   document.getElementById('gifDownloadLink').download = `skillmirror_clip_${i+1}.gif`;
   document.getElementById('gifModal').classList.add('open');
+  closeDrawer();
 }
 
 function closeModal() { document.getElementById('gifModal').classList.remove('open'); }
